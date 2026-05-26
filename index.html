@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mero Khata v3.1 - Digital Ledger</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Mukta:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #00ffa3;
+            --secondary: #7000ff;
+            --bg-dark: #050505;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        body { 
+            font-family: 'Mukta', 'Outfit', sans-serif;
+            background-color: var(--bg-dark); 
+            color: #ffffff;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            overscroll-behavior-y: none;
+        }
+
+        .tabular-nums { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+        
+        .glass-panel {
+            background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 1.25rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .glass-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 255, 163, 0.1);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .slide-in-right { animation: slideInRight 0.3s ease-out; }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        .fade-scale { animation: fadeScale 0.3s ease-out; }
+        @keyframes fadeScale { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .nav-btn i { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .nav-btn.active i { 
+            color: var(--primary); 
+            transform: translateY(-5px) scale(1.1); 
+            filter: drop-shadow(0 0 8px var(--primary)); 
+        }
+        .nav-btn.active span { color: var(--primary); font-weight: 600; opacity: 1; }
+        .nav-btn span { opacity: 0.6; transition: all 0.3s; }
+
+        .central-add-btn {
+            background: var(--primary);
+            box-shadow: 0 0 30px rgba(0, 255, 163, 0.4);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .central-add-btn:active { transform: scale(0.9); box-shadow: 0 0 15px rgba(0, 255, 163, 0.2); }
+
+        #context-menu {
+            animation: menuOpen 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.8);
+        }
+        @keyframes menuOpen { from { opacity: 0; transform: scale(0.9) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        select option { background-color: #111; color: white; padding: 10px; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+        .dev-highlight {
+            background: linear-gradient(90deg, #00ffa3, #00bfff, #00ffa3);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shine 3s linear infinite;
+            font-weight: 800;
+        }
+        @keyframes shine { to { background-position: 200% center; } }
+
+        .loader {
+            width: 48px; height: 48px;
+            border: 5px solid #FFF;
+            border-bottom-color: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #auth-screen {
+            background: radial-gradient(circle at 50% 30%, rgba(0, 255, 163, 0.22) 0%, transparent 65%), var(--bg-dark);
+        }
+    </style>
+</head>
+<body class="max-w-md mx-auto h-screen relative border-x border-gray-900 shadow-2xl overflow-hidden bg-[#050505] text-gray-100 flex flex-col">
+
+    <div id="auth-screen" class="absolute inset-0 z-[100] bg-[#050505] flex flex-col items-center justify-center p-8 space-y-12 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-opacity-20">
+        <div class="relative group">
+            <div class="absolute -inset-1 bg-gradient-to-r from-[#00ffa3] to-blue-600 rounded-full blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+            <div class="w-32 h-32 relative bg-black rounded-full border border-gray-800 flex items-center justify-center">
+                <i class="fas fa-wallet text-5xl text-[#00ffa3] drop-shadow-[0_0_15px_rgba(0,255,163,0.5)]"></i>
+            </div>
+        </div>
+        
+        <div class="text-center space-y-3 relative z-10">
+            <h1 class="text-6xl font-bold tracking-tighter text-white drop-shadow-lg">Mero<span class="text-[#00ffa3]">Khata</span></h1>
+            <p class="text-gray-400 text-sm font-medium uppercase" data-tag="slogan">Next Gen Finance</p>
+        </div>
+
+        <div class="w-full space-y-6 slide-up max-w-[320px]">
+            <div id="login-section" class="hidden space-y-6">
+                <div class="text-center">
+                    <p class="text-[#00ffa3] text-xs font-bold uppercase mb-2" data-tag="welcome_back">Welcome Back</p>
+                    <h2 id="login-user-name" class="text-3xl font-bold text-white">User</h2>
+                </div>
+                <div class="glass-input p-4 rounded-2xl flex items-center gap-4">
+                    <i class="fas fa-fingerprint text-gray-500"></i>
+                    <input type="password" id="login-pass" placeholder="Enter PIN / Password" class="bg-transparent w-full text-white outline-none placeholder-gray-600 font-medium">
+                </div>
+                <button onclick="attemptLogin()" class="w-full bg-[#00ffa3] text-black font-bold py-4 rounded-2xl text-lg hover:bg-[#00e693] transition-all transform active:scale-95 shadow-[0_0_30px_rgba(0,255,163,0.3)]">
+                    <span data-tag="login_btn">Unlock App</span>
+                </button>
+                <button onclick="switchAuthView('signup')" class="w-full text-xs text-gray-500 hover:text-white transition py-2" data-tag="reset_acc_btn">Create New Account (Reset)</button>
+            </div>
+
+            <div id="signup-section" class="hidden space-y-5">
+                <h3 class="text-center text-white font-bold text-2xl mb-4" data-tag="create_acc">Setup Profile</h3>
+                <div class="flex justify-center mb-4">
+                    <label class="relative cursor-pointer group">
+                        <img id="preview-avatar" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="w-24 h-24 rounded-full object-cover border-2 border-dashed border-gray-700 p-1 group-hover:border-[#00ffa3] transition">
+                        <div class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
+                            <i class="fas fa-camera text-[#00ffa3]"></i>
+                        </div>
+                        <input type="file" id="signup-photo" class="hidden" accept="image/*" onchange="handlePhotoUpload(this)">
+                    </label>
+                </div>
+                <input type="text" id="signup-name" placeholder="Full Name" class="glass-input w-full p-4 rounded-2xl text-white outline-none">
+                <input type="password" id="signup-pass" placeholder="Set PIN / Password" class="glass-input w-full p-4 rounded-2xl text-white outline-none">
+                <button onclick="handleSignup()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition hover:bg-blue-500">
+                    <span data-tag="signup_btn">Get Started</span>
+                </button>
+                <button onclick="switchAuthView('login')" id="back-to-login-btn" class="w-full text-xs text-gray-500 hover:text-white transition hidden" data-tag="back_login">Back to Login</button>
+
+                <div class="mt-4 border-t border-gray-800 pt-5">
+                    <p class="text-xs text-gray-500 text-center mb-3" data-tag="restore_hint">Have an account on another device?</p>
+                    <button onclick="document.getElementById('auth-import-file').click()" class="w-full bg-gray-900 border border-gray-700 text-[#00ffa3] font-bold py-3 rounded-xl shadow-lg active:scale-95 transition hover:bg-gray-800 flex items-center justify-center gap-2">
+                        <i class="fas fa-file-import"></i> <span data-tag="restore_old_acc">Restore Old Account (JSON)</span>
+                    </button>
+                    <input type="file" id="auth-import-file" class="hidden" accept=".json" onchange="restoreBackupAuth(this)">
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="app-screen" class="hidden flex flex-col h-full relative">
+        <header class="pt-8 pb-2 px-6 bg-gradient-to-b from-[#0a1128] via-[#050505] to-transparent sticky top-0 z-40">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <div class="relative group cursor-pointer" onclick="toggleSettings()">
+                        <img id="user-avatar" src="" class="w-12 h-12 rounded-full border border-gray-700 object-cover shadow-lg group-hover:border-[#00ffa3] transition">
+                        <div class="absolute bottom-0 right-0 w-3 h-3 bg-[#00ffa3] rounded-full border-2 border-black animate-pulse"></div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase mb-0.5" data-tag="welcome">Welcome</p>
+                        <h2 id="user-name" class="text-xl font-bold text-white leading-tight">User</h2>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                     <button onclick="openSearch()" id="btn-search" class="w-11 h-11 rounded-full glass-panel flex items-center justify-center active:scale-90 text-gray-400 hover:text-white transition border-gray-800">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="active-filter-badge" class="hidden mt-2 flex justify-center slide-up">
+                <div class="bg-gray-800/80 border border-gray-700 px-3 py-1 rounded-full flex items-center gap-2">
+                    <i class="fas fa-calendar-alt text-[#00ffa3] text-xs"></i>
+                    <span id="filter-display-text" class="text-xs font-bold text-white">October 2023</span>
+                    <i class="fas fa-times text-gray-500 text-xs ml-1 cursor-pointer" onclick="resetDateFilter()"></i>
+                </div>
+            </div>
+
+            <div id="search-bar" class="hidden mt-4 slide-up">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-4 top-4 text-gray-500 text-sm"></i>
+                    <input type="text" id="search-input" onkeyup="handleSearch()" placeholder="Search transactions..." class="glass-input w-full py-3.5 pl-10 pr-4 rounded-xl text-white text-sm outline-none">
+                </div>
+            </div>
+        </header>
+
+        <main id="main-content" class="flex-1 overflow-y-auto px-5 pt-2 pb-32 space-y-6 scroll-smooth no-scrollbar">
+            
+            <div id="tab-home" class="tab-view active space-y-6">
+                <div class="glass-panel p-6 relative overflow-hidden transform transition hover:scale-[1.01] duration-300">
+                    <div class="absolute right-[-50px] top-[-50px] w-64 h-64 bg-gradient-to-br from-[#00ffa3] to-blue-500 rounded-full blur-[80px] opacity-20 pointer-events-none animate-pulse"></div>
+                    
+                    <div class="relative z-10 flex flex-col items-center mb-6">
+                        <p class="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-2" id="label-bal" data-tag="total_bal">Total Balance</p>
+                        <h1 class="text-5xl font-extrabold text-white tabular-nums tracking-tighter drop-shadow-lg">Rs. <span id="display-balance">0.00</span></h1>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 relative z-10">
+                        <div class="bg-gray-900/60 p-4 rounded-2xl border border-white/5 backdrop-blur-md hover:bg-gray-800/60 transition">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-[#00ffa3]">
+                                    <i class="fas fa-arrow-down text-[10px]"></i>
+                                </div>
+                                <p class="text-[10px] text-gray-400 uppercase font-bold" data-tag="income">Income</p>
+                            </div>
+                            <p class="font-bold text-lg tabular-nums text-gray-100">Rs. <span id="display-income">0</span></p>
+                        </div>
+                        <div class="bg-gray-900/60 p-4 rounded-2xl border border-white/5 backdrop-blur-md hover:bg-gray-800/60 transition">
+                             <div class="flex items-center gap-3 mb-2">
+                                <div class="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
+                                    <i class="fas fa-arrow-up text-[10px]"></i>
+                                </div>
+                                <p class="text-[10px] text-gray-400 uppercase font-bold" data-tag="expense">Expense</p>
+                            </div>
+                            <p class="font-bold text-lg tabular-nums text-gray-100">Rs. <span id="display-expense">0</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-end px-1 mb-4">
+                        <h3 class="font-bold text-lg text-white" data-tag="recent_tx">Recent Transactions</h3>
+                        <button onclick="renderAll()" class="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-[#00ffa3] hover:rotate-180 transition"><i class="fas fa-sync-alt text-xs"></i></button>
+                    </div>
+                    <div id="tx-list" class="space-y-3 pb-4"></div>
+                    <p class="text-[10px] text-gray-600 font-medium text-center mt-4 uppercase opacity-50" data-tag="lp_hint">Tap to Edit</p>
+                </div>
+            </div>
+
+            <div id="tab-udharo" class="tab-view hidden space-y-6">
+                <div class="flex items-center justify-between px-1">
+                    <h2 class="text-2xl font-bold" data-tag="udharo">उधारो</h2>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="glass-panel p-5 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-blue-600/10 group-hover:bg-blue-600/20 transition"></div>
+                        <div class="relative z-10">
+                            <p class="text-[10px] text-blue-300 font-bold uppercase mb-1" data-tag="receivable">Receivable</p>
+                            <p class="text-2xl font-bold text-blue-400 tabular-nums">Rs. <span id="ud-receivable">0</span></p>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-5 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-orange-600/10 group-hover:bg-orange-600/20 transition"></div>
+                        <div class="relative z-10">
+                            <p class="text-[10px] text-orange-300 font-bold uppercase mb-1" data-tag="payable">Payable</p>
+                            <p class="text-2xl font-bold text-orange-400 tabular-nums">Rs. <span id="ud-payable">0</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="udharo-list" class="space-y-3"></div>
+                
+                <div id="udharo-empty" class="hidden text-center text-gray-600 py-12 flex flex-col items-center">
+                    <div class="w-16 h-16 rounded-full bg-gray-900 flex items-center justify-center mb-4">
+                        <i class="fas fa-users text-2xl opacity-30"></i>
+                    </div>
+                    <p class="text-sm font-medium" data-tag="no_udharo">No active accounts</p>
+                </div>
+            </div>
+
+            <div id="tab-analysis" class="tab-view hidden space-y-6">
+                <h2 class="text-2xl font-bold px-1" data-tag="analysis">Financial Insights</h2>
+                <div class="glass-panel p-6 flex flex-col items-center justify-center min-h-[320px] relative">
+                    <canvas id="financeChart" class="w-full relative z-10"></canvas>
+                    <div class="absolute inset-0 bg-gradient-to-t from-[#0a1128] to-transparent opacity-50 pointer-events-none"></div>
+                </div>
+                <div class="glass-panel p-1 border border-[#7000ff]/30 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-[#7000ff] rounded-full blur-[60px] opacity-20"></div>
+                    <div class="bg-[#0a0a0a]/80 p-5 rounded-xl backdrop-blur-sm relative z-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7000ff] to-blue-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                                <i class="fas fa-robot text-white text-xs"></i>
+                            </div>
+                            <h4 class="font-bold text-gray-100">AI Analysis</h4>
+                        </div>
+                        <div id="analysis-content" class="space-y-3">
+                            <p class="text-sm text-gray-300 leading-relaxed border-l-2 border-[#7000ff] pl-3" id="analysis-text">Loading...</p>
+                            <div id="analysis-details" class="mt-3 grid gap-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-trash" class="tab-view hidden space-y-5">
+                <div class="flex justify-between items-center px-1">
+                    <h2 class="text-2xl font-bold text-red-400" data-tag="bin">Recycle Bin</h2>
+                </div>
+                <div id="bin-list" class="space-y-3"></div>
+            </div>
+        </main>
+
+        <nav class="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[90%] max-w-[380px] bg-[#111111]/90 backdrop-blur-xl border border-white/10 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-50">
+            <div class="grid grid-cols-5 items-center h-[65px] px-1 relative">
+                <button onclick="switchTab('home')" class="nav-btn active w-full h-full flex flex-col items-center justify-center" data-target="home">
+                    <i class="fas fa-house text-xl mb-1"></i>
+                </button>
+                <button onclick="switchTab('udharo')" class="nav-btn w-full h-full flex flex-col items-center justify-center" data-target="udharo">
+                    <i class="fas fa-hand-holding-dollar text-xl mb-1 text-gray-500"></i>
+                </button>
+                
+                <div class="relative w-full h-full flex items-center justify-center -mt-6">
+                    <button onclick="handleCentralAdd()" class="central-add-btn w-14 h-14 rounded-full flex items-center justify-center text-black text-2xl relative z-10">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <button onclick="switchTab('analysis')" class="nav-btn w-full h-full flex flex-col items-center justify-center" data-target="analysis">
+                    <i class="fas fa-chart-pie text-xl mb-1 text-gray-500"></i>
+                </button>
+                <button onclick="switchTab('trash')" class="nav-btn w-full h-full flex flex-col items-center justify-center" data-target="trash">
+                    <i class="fas fa-trash text-xl mb-1 text-gray-500"></i>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <div id="entry-modal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm hidden items-end sm:items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-[#0f0f13] p-6 rounded-[2rem] border border-gray-800 slide-up relative shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 id="modal-title" class="text-2xl font-bold text-white" data-tag="add_tx">Add Entry</h3>
+                <button onclick="closeModal('entry-modal')" class="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 transition"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="space-y-5">
+                <button onclick="document.getElementById('ocr-input').click()" class="w-full py-3 rounded-xl bg-gray-900 border border-gray-700 hover:border-[#00ffa3] group flex items-center justify-center gap-3 transition-all relative overflow-hidden">
+                    <div class="absolute inset-0 bg-[#00ffa3]/5 group-hover:bg-[#00ffa3]/10 transition"></div>
+                    <i class="fas fa-camera text-[#00ffa3]"></i>
+                    <span class="text-gray-300 font-bold text-sm" data-tag="scan_bill">Scan Receipt</span>
+                </button>
+                <input type="file" id="ocr-input" class="hidden" accept="image/*" onchange="processOCR(this)">
+
+                <div class="flex p-1 bg-black rounded-xl border border-gray-800">
+                    <button id="btn-type-1" onclick="setType(1)" class="flex-1 py-3 rounded-lg text-sm font-bold bg-[#00ffa3] text-black transition shadow-lg" data-tag="income">Income</button>
+                    <button id="btn-type-2" onclick="setType(2)" class="flex-1 py-3 rounded-lg text-sm font-bold text-gray-500 hover:text-white transition" data-tag="expense">Expense</button>
+                </div>
+
+                <input type="hidden" id="entry-id">
+                <input type="hidden" id="entry-mode"> 
+                
+                <div class="space-y-4">
+                    <input type="text" id="inp-desc" placeholder="Description" class="glass-input w-full p-4 rounded-xl text-white outline-none">
+                    <div class="relative">
+                        <span class="absolute left-4 top-4 text-[#00ffa3] font-bold">Rs.</span>
+                        <input type="number" id="inp-amount" placeholder="0.00" class="glass-input w-full p-4 pl-12 rounded-xl text-white text-xl font-bold outline-none tabular-nums">
+                    </div>
+                    <input type="date" id="inp-date" class="glass-input w-full p-4 rounded-xl text-gray-300 outline-none">
+                </div>
+
+                <button onclick="saveEntry()" class="w-full bg-gradient-to-r from-[#00ffa3] to-[#00e693] text-black font-bold py-4 rounded-xl mt-2 shadow-[0_4px_25px_rgba(0,255,163,0.3)] active:scale-95 transition" data-tag="save_btn">Save Entry</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="udharo-entry-modal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-sm hidden items-end sm:items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-[#0f0f13] p-6 rounded-[2rem] border border-gray-800 slide-up relative shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-white" data-tag="add_udharo">नयाँ उधारो विवरण</h3>
+                <button onclick="closeModal('udharo-entry-modal')" class="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 transition"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="space-y-5">
+                <button onclick="document.getElementById('ocr-input-u').click()" class="w-full py-3 rounded-xl bg-gray-900 border border-gray-700 hover:border-[#00ffa3] group flex items-center justify-center gap-3 transition-all relative overflow-hidden">
+                    <div class="absolute inset-0 bg-[#00ffa3]/5 group-hover:bg-[#00ffa3]/10 transition"></div>
+                    <i class="fas fa-camera text-[#00ffa3]"></i>
+                    <span class="text-gray-300 font-bold text-sm" data-tag="scan_bill">बिल / रसिद स्क्यान</span>
+                </button>
+                <input type="file" id="ocr-input-u" class="hidden" accept="image/*" onchange="processOCR(this)">
+
+                <div class="flex gap-2 mb-2">
+                    <button id="ud-btn-rec" onclick="setUdharoType('receivable')" class="flex-1 py-3 rounded-xl font-bold bg-blue-600 text-white" data-tag="to_receive">लिनुपर्ने</button>
+                    <button id="ud-btn-pay" onclick="setUdharoType('payable')" class="flex-1 py-3 rounded-xl font-bold bg-gray-900 text-white" data-tag="to_pay">तिर्नुपर्ने</button>
+                </div>
+
+                <div id="ud-mode-group" class="flex gap-2 mb-4">
+                    <button id="ud-btn-naya" onclick="setUdharoMode('naya')" class="flex-1 py-3 rounded-xl font-bold bg-[#00ffa3] text-black" data-tag="new">नयाँ</button>
+                    <button id="ud-btn-purano" onclick="setUdharoMode('purano')" class="flex-1 py-3 rounded-xl font-bold bg-gray-900 text-white" data-tag="old">पुरानो</button>
+                </div>
+
+                <select id="ud-account-select" class="glass-input w-full p-4 rounded-xl text-white outline-none">
+                    <option value="">Select Account</option>
+                </select>
+
+                <button id="ud-new-account-btn" onclick="openAccountModalFromUdharo()" class="w-full text-xs text-gray-500 hover:text-white transition py-2" data-tag="create_acc_hint">Create New Account if not found</button>
+
+                <input type="text" id="ud-desc" placeholder="विवरण" class="glass-input w-full p-4 rounded-xl text-white outline-none">
+                <div class="relative">
+                    <span class="absolute left-4 top-4 text-[#00ffa3] font-bold">Rs.</span>
+                    <input type="number" id="ud-amount" placeholder="0.00" class="glass-input w-full p-4 pl-12 rounded-xl text-white text-xl font-bold outline-none tabular-nums">
+                </div>
+                <input type="date" id="ud-date" class="glass-input w-full p-4 rounded-xl text-gray-300 outline-none">
+
+                <button onclick="saveUdharoEntry()" class="w-full bg-gradient-to-r from-[#00ffa3] to-[#00e693] text-black font-bold py-4 rounded-xl mt-2 shadow-[0_4px_25px_rgba(0,255,163,0.3)] active:scale-95 transition" data-tag="save">सेभ गर्नुहोस्</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="account-modal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-sm hidden items-end sm:items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-[#0f0f13] p-6 rounded-[2rem] border border-gray-800 slide-up relative shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-white" data-tag="new_account">Create Account</h3>
+                <button onclick="closeModal('account-modal')" class="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+                 <div class="flex justify-center mb-4">
+                    <label class="relative cursor-pointer group">
+                        <img id="new-acc-img" src="https://cdn-icons-png.flaticon.com/512/847/847969.png" class="w-20 h-20 rounded-full object-cover border-2 border-dashed border-gray-700 p-1 group-hover:border-[#00ffa3] transition">
+                        <input type="file" id="acc-photo-input" class="hidden" accept="image/*" onchange="handleAccPhoto(this)">
+                    </label>
+                </div>
+                <input type="text" id="acc-name" placeholder="Person / Shop Name" class="glass-input w-full p-4 rounded-xl text-white outline-none">
+                <input type="tel" id="acc-phone" placeholder="Phone Number" class="glass-input w-full p-4 rounded-xl text-white outline-none">
+                <button onclick="saveNewAccount()" class="w-full bg-[#00ffa3] text-black font-bold py-4 rounded-xl shadow-lg active:scale-95 transition" data-tag="create_account">Create Account</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="account-edit-modal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-sm hidden items-end sm:items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-[#0f0f13] p-6 rounded-[2rem] border border-gray-800 slide-up relative shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-white" data-tag="edit_account">Edit Account</h3>
+                <button onclick="closeModal('account-edit-modal')" class="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+                 <div class="flex justify-center mb-4">
+                    <label class="relative cursor-pointer group">
+                        <img id="edit-acc-img" src="" class="w-20 h-20 rounded-full object-cover border-2 border-dashed border-gray-700 p-1 group-hover:border-[#00ffa3] transition">
+                        <input type="file" id="edit-acc-photo-input" class="hidden" accept="image/*" onchange="handleEditAccPhoto(this)">
+                    </label>
+                </div>
+                <input type="text" id="edit-acc-name" placeholder="Person / Shop Name" class="glass-input w-full p-4 rounded-xl text-white outline-none">
+                <input type="tel" id="edit-acc-phone" placeholder="Phone Number" class="glass-input w-full p-4 rounded-xl text-white outline-none">
+                <input type="hidden" id="edit-acc-id">
+                <button onclick="saveEditAccount()" class="w-full bg-[#00ffa3] text-black font-bold py-4 rounded-xl shadow-lg active:scale-95 transition" data-tag="save">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="account-view" class="fixed inset-0 z-[80] bg-[#050505] hidden flex-col slide-in-right max-w-md mx-auto">
+        <div class="p-6 pt-10 bg-[#111] border-b border-gray-800 flex items-center gap-4 relative">
+             <button onclick="closeAccountView()" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-white"><i class="fas fa-arrow-left"></i></button>
+             <img id="view-acc-img" src="" class="w-12 h-12 rounded-full border border-gray-600">
+             <div class="flex-1">
+                 <h2 id="view-acc-name" class="text-xl font-bold text-white leading-none">Name</h2>
+                 <p id="view-acc-phone" class="text-xs text-gray-500 mt-1">Number</p>
+             </div>
+             <div class="text-right">
+                 <p class="text-[10px] text-gray-400 font-bold uppercase" data-tag="total_due">Total Due</p>
+                 <p id="view-acc-total" class="font-bold text-lg tabular-nums">Rs. 0</p>
+             </div>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4 space-y-3" id="acc-tx-list"></div>
+
+        <div class="p-4 bg-[#111] border-t border-gray-800 grid grid-cols-2 gap-3 pb-8">
+            <button onclick="openAccTxModal('give')" class="bg-red-500/10 border border-red-500/20 text-red-400 py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                <i class="fas fa-arrow-up"></i> <span data-tag="gave">Gave</span>
+            </button>
+            <button onclick="openAccTxModal('got')" class="bg-green-500/10 border border-green-500/20 text-[#00ffa3] py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                <i class="fas fa-arrow-down"></i> <span data-tag="got">Got</span>
+            </button>
+            <button onclick="settleAccount()" class="col-span-2 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg active:scale-95">
+                <i class="fas fa-check-circle mr-2"></i> <span data-tag="full_settle">Full Settlement</span>
+            </button>
+            <button onclick="partialPayment()" class="col-span-2 bg-purple-600 text-white py-3 rounded-xl font-bold shadow-lg active:scale-95">
+                <i class="fas fa-money-bill-wave mr-2"></i> <span data-tag="partial_pay">Partial Payment</span>
+            </button>
+            <button onclick="viewAccountHistory()" class="col-span-2 bg-gray-600 text-white py-3 rounded-xl font-bold shadow-lg active:scale-95">
+                <i class="fas fa-history mr-2"></i> <span data-tag="view_history">View History</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="fixed inset-0 z-[70] bg-[#050505]/95 backdrop-blur-md hidden overflow-y-auto fade-scale">
+        <div class="p-6 max-w-md mx-auto min-h-screen flex flex-col">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-bold text-white" data-tag="settings">Settings</h2>
+                <button onclick="toggleSettings()" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 transition"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="flex-1 space-y-8">
+                <div class="glass-panel p-6 flex items-center gap-5">
+                    <div class="relative group cursor-pointer" onclick="document.getElementById('update-photo-input').click()">
+                        <img id="settings-avatar" src="" class="w-16 h-16 rounded-full border-2 border-[#00ffa3] object-cover">
+                        <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><i class="fas fa-camera text-white"></i></div>
+                    </div>
+                    <input type="file" id="update-photo-input" class="hidden" accept="image/*" onchange="updateProfilePhoto(this)">
+                    <div>
+                        <h3 id="settings-name" class="font-bold text-xl text-white">User</h3>
+                        <p class="text-xs text-[#00ffa3]" data-tag="edit_photo_hint">Tap photo to edit</p>
+                    </div>
+                </div>
+
+                <div>
+                     <h4 class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-3" data-tag="date_filter_label">Date Filter</h4>
+                     <div class="glass-panel p-4">
+                        <div class="flex items-center gap-3 w-full">
+                            <i class="fas fa-calendar-day text-gray-400"></i>
+                            <select id="date-filter" onchange="updateDateFilter(this.value)" class="bg-transparent w-full text-white outline-none font-medium border-none focus:ring-0 cursor-pointer">
+                                <option value="all">All Time</option>
+                                </select>
+                            <i class="fas fa-chevron-down text-gray-500 text-xs"></i>
+                        </div>
+                     </div>
+                </div>
+
+                <div>
+                    <h4 class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-3" data-tag="preferences">Preferences</h4>
+                    <div class="glass-panel p-4 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-globe text-gray-400"></i>
+                            <span class="font-medium" data-tag="language">Language</span>
+                        </div>
+                        <button onclick="toggleLang()" class="text-[#00ffa3] text-xs font-bold border border-[#00ffa3] px-4 py-2 rounded-full hover:bg-[#00ffa3]/10 transition" id="lang-btn">English</button>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-3" data-tag="data_mgmt">Data</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="downloadBackup()" class="glass-panel p-4 flex flex-col items-center gap-2 hover:bg-gray-800 transition">
+                            <i class="fas fa-download text-green-400 text-xl"></i>
+                            <span class="text-xs font-bold" data-tag="backup_data">Backup Data (JSON)</span>
+                        </button>
+                        <button onclick="document.getElementById('import-file').click()" class="glass-panel p-4 flex flex-col items-center gap-2 hover:bg-gray-800 transition">
+                            <i class="fas fa-file-import text-blue-400 text-xl"></i>
+                            <span class="text-xs font-bold" data-tag="restore_data">Restore Data</span>
+                        </button>
+                        <input type="file" id="import-file" class="hidden" accept=".json" onchange="restoreBackup(this)">
+                        
+                        <button onclick="exportPDFReport()" class="glass-panel p-4 flex flex-col items-center gap-2 hover:bg-gray-800 transition col-span-2">
+                             <i class="fas fa-file-pdf text-red-400 text-xl"></i>
+                             <span class="text-xs font-bold" data-tag="download_report">Download PDF Report</span>
+                        </button>
+                    </div>
+                    <button onclick="resetData()" class="w-full mt-3 glass-panel p-4 flex items-center justify-center gap-3 text-red-500 border-red-900/40 hover:bg-red-900/10 transition">
+                        <i class="fas fa-skull"></i>
+                        <span class="font-bold text-sm" data-tag="factory_reset">Factory Reset</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="py-8 text-center space-y-4">
+                <button onclick="logout()" class="text-gray-500 font-bold hover:text-white transition flex items-center justify-center gap-2 w-full" data-tag="logout">
+                    <i class="fas fa-sign-out-alt"></i> Log Out
+                </button>
+                <div class="border-t border-gray-800 pt-6">
+                    <p class="text-sm font-bold text-gray-400">Mero Khata v3.1</p>
+                    <p class="text-[14px] mt-1 tracking-widest uppercase dev-highlight">Developed by Amrit</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="scan-loader" class="fixed inset-0 z-[80] bg-black/95 hidden flex-col items-center justify-center text-center">
+        <span class="loader mb-6"></span>
+        <h3 class="text-2xl font-bold text-white tracking-widest" data-tag="processing">ANALYZING...</h3>
+    </div>
+
+    <div id="context-menu" class="fixed hidden bg-[#1a1a1a]/95 backdrop-blur-xl border border-gray-700 rounded-xl overflow-hidden z-[9999] w-48 py-1"></div>
+
+    <script>
+        const dictionary = {
+            en: {
+                slogan: "Next Gen Finance", login_btn: "Unlock App", create_acc: "Setup Profile", signup_btn: "Get Started",
+                welcome: "Welcome", total_bal: "Total Balance", income: "Income", expense: "Expense", recent_tx: "Recent Transactions",
+                refresh: "Refresh", lp_hint: "Tap item to edit", udharo: "Udharo", receivable: "Receivable",
+                payable: "Payable", analysis: "Financial Insights", bin: "Recycle Bin", add_tx: "Add Entry",
+                save_btn: "Save Entry", settings: "Settings", data_mgmt: "Data Management", language: "App Language", logout: "Log Out",
+                edit: "Edit", history: "History", delete: "Delete", scan_bill: "Scan Receipt", description: "Description",
+                no_udharo: "No active accounts in this period", no_tx: "No Transactions found", bin_empty: "Trash is empty", restore: "Restore", processing: "ANALYZING...",
+                welcome_back: "Welcome Back", full_name: "Full Name", set_password: "Set PIN / Password",
+                enter_password: "Enter PIN / Password", search_tx: "Search transactions...",
+                history_for: "History for:", total_due: "Net Balance", enter_amount_paid: "Enter amount",
+                incorrect_pass: "Incorrect PIN!", please_fill: "Please fill all fields!",
+                overwrite_acc: "Overwrite existing account?", move_to_bin: "Move to Recycle Bin?",
+                invalid_amount: "Invalid amount", please_details: "Please fill details",
+                reset_confirm: "WARNING: This will WIPE ALL DATA permanently.\n\nAre you sure?",
+                details_not_found: "Could not read receipt", no_data_pdf: "Invalid Backup File",
+                new_account: "New Account", gave: "Gave (+)", got: "Got (-)",
+                insight_spending: "High Spending Alert:", insight_debt: "Top Debt:", insight_good: "Financial Health is Good.",
+                insight_save: "Savings Rate:", insight_owe_me: "You are owed the most by:", insight_i_owe: "You owe the most to:",
+                all_accounts: "All Accounts", create_account: "Create Account", add_udharo: "Add Udharo",
+                to_receive: "To Receive", to_pay: "To Pay", new: "New", old: "Old",
+                person_shop_name: "Person / Shop Name", phone_number: "Phone Number", amount: "Amount", save: "Save",
+                edit_account: "Edit Account", preferences: "Preferences", backup_data: "Backup Data (JSON)",
+                restore_data: "Restore Data", download_report: "Download PDF Report", factory_reset: "Factory Reset",
+                date_filter_label: "Date Filter", all_time: "All Time", full_settle: "Full Settlement",
+                partial_pay: "Partial Payment", view_history: "View History", reset_acc_btn: "Create New Account (Reset)",
+                back_login: "Back to Login", edit_photo_hint: "Tap photo to edit", create_acc_hint: "Create New Account if not found",
+                cash_taken: "Cash Taken", credit_only: "Credit Only", money_out: "Money Out", just_record: "Old Debt",
+                restore_hint: "Have an account on another device?", restore_old_acc: "Restore Old Account (JSON)"
+            },
+            np: {
+                slogan: "तपाईंको डिजिटल हिसाब", login_btn: "लग-इन", create_acc: "प्रोफाइल बनाउनुहोस्", signup_btn: "सुरु गर्नुहोस्",
+                welcome: "स्वागत छ", total_bal: "कुल मौज्दात", income: "आम्दानी", expense: "खर्च", recent_tx: "हालैको कारोबार",
+                refresh: "ताजा गर्नुहोस्", lp_hint: "इडिट गर्न थिच्नुहोस्", udharo: "उधारो", receivable: "लिनुपर्ने",
+                payable: "तिर्नुपर्ने", analysis: "आर्थिक विश्लेषण", bin: "रद्दी टोकरी", add_tx: "विवरण थप्नुहोस्",
+                save_btn: "सुरक्षित गर्नुहोस्", settings: "सेटिङ्स", data_mgmt: "तथ्याङ्क व्यवस्थापन", language: "भाषा", logout: "लग आउट",
+                edit: "सम्पादन", history: "इतिहास", delete: "मेटाउनुहोस्", scan_bill: "बिल स्क्यान", description: "विवरण",
+                no_udharo: "यो अवधिमा कुनै उधारो छैन", no_tx: "कुनै कारोबार भेटिएन", bin_empty: "रद्दी टोकरी खाली छ", restore: "फिर्ता", processing: "प्रशोधन हुँदै...",
+                welcome_back: "स्वागत छ", full_name: "पुरा नाम", set_password: "पिन / पासवर्ड राख्नुहोस्",
+                enter_password: "पिन / पासवर्ड", search_tx: "कारोबार खोज्नुहोस्...",
+                history_for: "इतिहास:", total_due: "कुल बाँकी", enter_amount_paid: "रकम राख्नुहोस्",
+                incorrect_pass: "गलत पिन!", please_fill: "सबै विवरण भर्नुहोस्!",
+                overwrite_acc: "पुरानो खाता हटाएर नयाँ बनाउने हो?", move_to_bin: "रद्दी टोकरीमा सार्ने हो?",
+                invalid_amount: "अवैध रकम", please_details: "विवरण भर्नुहोस्",
+                reset_confirm: "चेतावनी: सबै डाटा सदाका लागि मेटिनेछ। \n\nके तपाईं निश्चित हुनुहुन्छ?",
+                details_not_found: "विवरण पढ्न सकिएन", no_data_pdf: "गलत ब्याकअप फाइल",
+                new_account: "नयाँ खाता", gave: "दिएको (+)", got: "लिएको (-)",
+                insight_spending: "उच्च खर्च:", insight_debt: "धेरै ऋण:", insight_good: "आर्थिक अवस्था राम्रो छ।",
+                insight_save: "बचत दर:", insight_owe_me: "सबैभन्दा बढी उठाउन बाँकी:", insight_i_owe: "सबैभन्दा बढी तिर्न बाँकी:",
+                all_accounts: "सबै खाताहरु", create_account: "खाता बनाउनुहोस्", add_udharo: "उधारो थप्नुहोस्",
+                to_receive: "लिनुपर्ने", to_pay: "तिर्नुपर्ने", new: "नयाँ", old: "पुरानो",
+                person_shop_name: "व्यक्ति / पसलको नाम", phone_number: "फोन नम्बर", amount: "रकम", save: "सुरक्षित गर्नुहोस्",
+                edit_account: "खाता सम्पादन गर्नुहोस्", preferences: "प्राथमिकताहरू", backup_data: "ब्याकअप लिनुहोस् (JSON)",
+                restore_data: "डाटा रिस्टोर गर्नुहोस्", download_report: "PDF रिपोर्ट डाउनलोड", factory_reset: "सबै डाटा हटाउनुहोस्",
+                date_filter_label: "मिति छान्नुहोस्", all_time: "सबै समय", full_settle: "पूरा भुक्तानी",
+                partial_pay: "आंशिक भुक्तानी", view_history: "इतिहास हेर्नुहोस्", reset_acc_btn: "नयाँ अकाउन्ट खोल्नुहोस्",
+                back_login: "लग-इन मा जानुहोस्", edit_photo_hint: "फोटो फेर्न थिच्नुहोस्", create_acc_hint: "नयाँ खाता बनाउनुहोस्",
+                cash_taken: "नगद लिएको", credit_only: "उधारो मात्र / सामान", money_out: "नगद दिएको", just_record: "पुरानो बाँकी",
+                restore_hint: "अर्को मोबाइलमा खाता छ?", restore_old_acc: "पुरानो खाता रिस्टोर गर्नुहोस्"
+            }
+        };
+
+        let db = JSON.parse(localStorage.getItem('mero_khata_db')) || { user: null, transactions: [], accounts: [], trash: [], lang: 'np' };
+        let currentTab = 'home';
+        let currentType = 'income';
+        let chartInstance = null;
+        let activeAccountID = null;
+        let udharoAddType = 'receivable';
+        let udharoAddMode = 'naya';
+        let fromUdharo = false;
+        let currentDateFilter = 'all'; 
+
+        // Helper for Nepali Digits
+        function toNepaliDigits(numStr) {
+            const map = { '0': '०', '1': '१', '2': '२', '3': '३', '4': '४', '5': '५', '6': '६', '7': '७', '8': '८', '9': '९' };
+            return numStr.toString().split('').map(char => map[char] || char).join('');
+        }
+
+        function formatCurrency(amount) {
+            let formatted = Number(amount).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+            return db.lang === 'np' ? toNepaliDigits(formatted) : formatted;
+        }
+
+        // --- Date Filter Logic ---
+        function generateDateOptions() {
+            const select = document.getElementById('date-filter');
+            select.innerHTML = `<option value="all">${dictionary[db.lang].all_time}</option>`;
+            
+            const today = new Date();
+            for (let i = 0; i < 12; i++) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const value = d.toISOString().slice(0, 7); // YYYY-MM
+                const label = d.toLocaleDateString(db.lang === 'np' ? 'ne-NP' : 'en-US', { month: 'long', year: 'numeric' });
+                select.innerHTML += `<option value="${value}">${label}</option>`;
+            }
+            select.value = currentDateFilter;
+        }
+
+        function updateDateFilter(val) {
+            currentDateFilter = val;
+            const badge = document.getElementById('active-filter-badge');
+            const label = document.getElementById('filter-display-text');
+            
+            if(val === 'all') {
+                badge.classList.add('hidden');
+            } else {
+                badge.classList.remove('hidden');
+                // Format label for badge
+                const [y, m] = val.split('-');
+                const d = new Date(parseInt(y), parseInt(m)-1);
+                label.innerText = d.toLocaleDateString(db.lang === 'np' ? 'ne-NP' : 'en-US', { month: 'long', year: 'numeric' });
+            }
+            renderAll();
+        }
+
+        function resetDateFilter() {
+            document.getElementById('date-filter').value = 'all';
+            updateDateFilter('all');
+        }
+
+        function isDateInFilter(dateStr) {
+            if(currentDateFilter === 'all') return true;
+            return dateStr.startsWith(currentDateFilter);
+        }
+
+        // --- Core Functions ---
+
+        function checkLogin() {
+            if (db.user && db.user.name) {
+                switchAuthView('login');
+                document.getElementById('login-user-name').innerText = db.user.name;
+                document.getElementById('back-to-login-btn').classList.remove('hidden');
+                document.getElementById('user-name').innerText = db.user.name;
+                document.getElementById('settings-name').innerText = db.user.name;
+                document.getElementById('user-avatar').src = db.user.photo;
+                document.getElementById('settings-avatar').src = db.user.photo;
+            } else {
+                switchAuthView('signup');
+                document.getElementById('back-to-login-btn').classList.add('hidden');
+            }
+            applyLanguage(db.lang);
+            generateDateOptions(); // Init dates
+        }
+
+        function switchAuthView(view) {
+            document.getElementById('login-section').classList.toggle('hidden', view !== 'login');
+            document.getElementById('signup-section').classList.toggle('hidden', view !== 'signup');
+        }
+
+        function attemptLogin() {
+            if(document.getElementById('login-pass').value === db.user.password) {
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+                document.getElementById('login-pass').value = ''; 
+                renderAll();
+            } else alert(dictionary[db.lang].incorrect_pass);
+        }
+
+        function handleSignup() {
+            const name = document.getElementById('signup-name').value;
+            const pass = document.getElementById('signup-pass').value;
+            const photoSrc = document.getElementById('preview-avatar').src;
+            if (!name || !pass) return alert(dictionary[db.lang].please_fill);
+            if(db.user && db.user.name) { if(!confirm(dictionary[db.lang].overwrite_acc)) return; }
+            db = { user: { name, password: pass, photo: photoSrc }, transactions: [], accounts: [], trash: [], lang: db.lang };
+            saveDB();
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            location.reload();
+        }
+
+        function logout() { if(confirm("Lock App?")) location.reload(); }
+
+        function toggleLang() {
+            db.lang = db.lang === 'en' ? 'np' : 'en';
+            saveDB(); 
+            applyLanguage(db.lang);
+            generateDateOptions(); // Re-render months in correct language
+            // Update Udharo buttons with new lang
+            setUdharoType(udharoAddType);
+            renderAll();
+        }
+
+        function applyLanguage(lang) {
+            const data = dictionary[lang];
+            document.querySelectorAll('[data-tag]').forEach(el => {
+                const key = el.getAttribute('data-tag');
+                if(data[key]) el.innerText = data[key];
+            });
+            document.getElementById('lang-btn').innerText = lang === 'en' ? 'English' : 'नेपाली';
+
+            const ph = (id, key) => { if(document.getElementById(id)) document.getElementById(id).placeholder = data[key] || ""; };
+            ph('signup-name', 'full_name');
+            ph('signup-pass', 'set_password');
+            ph('login-pass', 'enter_password');
+            ph('search-input', 'search_tx');
+            ph('inp-desc', 'description');
+            ph('ud-desc', 'description');
+            ph('acc-name', 'person_shop_name');
+            ph('acc-phone', 'phone_number');
+            ph('edit-acc-name', 'person_shop_name');
+            ph('edit-acc-phone', 'phone_number');
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('fade-scale');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if(btn.dataset.target === tab) btn.classList.add('active');
+            });
+            if (tab === 'analysis') renderAnalysis();
+            if (tab === 'trash') renderTrash();
+            renderAll(); 
+        }
+
+        function toggleSettings() { document.getElementById('settings-modal').classList.toggle('hidden'); }
+        function openSearch() { document.getElementById('search-bar').classList.toggle('hidden'); }
+        function saveDB() { localStorage.setItem('mero_khata_db', JSON.stringify(db)); }
+
+        function renderAll() {
+            const filteredTx = db.transactions.filter(t => isDateInFilter(t.date));
+            renderTransactions(filteredTx);
+            calculateHomeTotals(filteredTx);
+            renderUdharoList(); 
+            if(currentTab === 'analysis') renderAnalysis();
+        }
+
+        function calculateHomeTotals(txList) {
+            const inc = txList.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+            const exp = txList.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+            document.getElementById('display-balance').innerText = formatCurrency(inc - exp);
+            document.getElementById('display-income').innerText = formatCurrency(inc);
+            document.getElementById('display-expense').innerText = formatCurrency(exp);
+        }
+
+        function renderTransactions(data) {
+            const list = document.getElementById('tx-list');
+            list.innerHTML = '';
+            const sorted = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
+            if(sorted.length === 0) {
+                list.innerHTML = `<div class="text-center py-8 opacity-40"><p>${dictionary[db.lang].no_tx}</p></div>`;
+                return;
+            }
+            sorted.forEach(t => {
+                const isInc = t.type === 'income';
+                const el = document.createElement('div');
+                el.className = 'glass-panel p-4 flex justify-between items-center transition cursor-pointer hover:bg-white/5 border border-white/5';
+                el.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full ${isInc ? 'bg-green-500/10' : 'bg-red-500/10'} flex items-center justify-center border ${isInc?'border-green-500/20':'border-red-500/20'}">
+                            <i class="fas ${isInc ? 'fa-arrow-down text-[#00ffa3]' : 'fa-arrow-up text-red-400'} text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-200 text-sm leading-tight">${t.desc}</p>
+                            <p class="text-[10px] text-gray-500 font-medium">${t.date}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold ${isInc ? 'text-[#00ffa3]' : 'text-red-400'} text-base tabular-nums">${isInc ? '+' : '-'} ${formatCurrency(t.amount)}</p>
+                    </div>
+                `;
+                el.onclick = (e) => showCtx(e, t.id, 'tx');
+                list.appendChild(el);
+            });
+        }
+
+        function renderUdharoList() {
+            const list = document.getElementById('udharo-list');
+            list.innerHTML = '';
+            
+            let totalRec = 0;
+            let totalPay = 0;
+            let hasActiveAccounts = false;
+
+            const sorted = [...db.accounts].sort((a, b) => new Date(b.subTransactions[0]?.date || 0) - new Date(a.subTransactions[0]?.date || 0));
+            
+            sorted.forEach(u => {
+                const filteredSubs = u.subTransactions.filter(t => isDateInFilter(t.date));
+                if (currentDateFilter !== 'all' && filteredSubs.length === 0) return;
+
+                hasActiveAccounts = true;
+                const periodBalance = filteredSubs.reduce((s, t) => s + (t.type === 'receivable' ? Number(t.amount) : -Number(t.amount)), 0);
+                
+                if (periodBalance > 0) totalRec += periodBalance;
+                else totalPay += Math.abs(periodBalance);
+
+                const isRec = periodBalance >= 0;
+                const displayAmt = Math.abs(periodBalance);
+                
+                const el = document.createElement('div');
+                el.className = 'glass-panel p-4 flex justify-between items-center transition cursor-pointer border-l-4 ' + (isRec ? 'border-blue-500' : 'border-orange-500');
+                el.onclick = () => openAccount(u.id);
+                el.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <img src="${u.photo || 'https://cdn-icons-png.flaticon.com/512/847/847969.png'}" class="w-10 h-10 rounded-full object-cover bg-gray-800">
+                        <div>
+                            <p class="font-bold text-white text-base">${u.name}</p>
+                            <p class="text-[10px] text-gray-400">${u.phone || 'No Number'}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold ${isRec ? 'text-blue-400' : 'text-orange-400'} tabular-nums text-lg">Rs. ${formatCurrency(displayAmt)}</p>
+                        <p class="text-[10px] text-gray-600">${isRec ? dictionary[db.lang].receivable : dictionary[db.lang].payable}</p>
+                    </div>
+                `;
+                attachLongPress(el, u.id, 'udharo');
+                const opt = document.createElement('div');
+                opt.className = "absolute top-2 right-2 p-2 opacity-50";
+                opt.innerHTML = '<i class="fas fa-ellipsis-v text-xs"></i>';
+                opt.onclick = (e) => { e.stopPropagation(); showCtx(e, u.id, 'udharo'); };
+                el.appendChild(opt);
+
+                list.appendChild(el);
+            });
+
+            document.getElementById('ud-receivable').innerText = formatCurrency(totalRec);
+            document.getElementById('ud-payable').innerText = formatCurrency(totalPay);
+
+            if(!hasActiveAccounts) {
+                document.getElementById('udharo-empty').classList.remove('hidden');
+            } else {
+                document.getElementById('udharo-empty').classList.add('hidden');
+            }
+        }
+
+        function attachLongPress(el, id, type) {
+            let timer;
+            el.addEventListener('touchstart', (e) => {
+                timer = setTimeout(() => {
+                    e.stopPropagation();
+                    showCtx({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY, preventDefault:()=>{}, stopPropagation:()=>{} }, id, type);
+                }, 600);
+            }, {passive:true});
+            const clear = () => clearTimeout(timer);
+            el.addEventListener('touchend', clear);
+            el.addEventListener('touchcancel', clear);
+            el.addEventListener('touchmove', clear);
+        }
+
+        function handleCentralAdd() {
+            if(currentTab === 'udharo') {
+                openUdharoAddModal();
+            } else {
+                resetEntryForm();
+                openModal('entry-modal');
+            }
+        }
+
+        function resetEntryForm() {
+            document.getElementById('entry-mode').value = 'tx';
+            document.getElementById('entry-id').value = '';
+            document.getElementById('inp-desc').value = '';
+            document.getElementById('inp-amount').value = '';
+            document.getElementById('inp-date').valueAsDate = new Date();
+            setType(1);
+            document.getElementById('modal-title').innerText = dictionary[db.lang].add_tx;
+        }
+
+        function openUdharoAddModal() {
+            document.getElementById('udharo-entry-modal').classList.remove('hidden');
+            document.getElementById('udharo-entry-modal').classList.add('flex');
+            document.getElementById('ud-desc').value = '';
+            document.getElementById('ud-amount').value = '';
+            document.getElementById('ud-date').valueAsDate = new Date();
+            setUdharoType('receivable');
+            setUdharoMode('naya');
+
+            const select = document.getElementById('ud-account-select');
+            select.innerHTML = '<option value="">Select Account</option>';
+            db.accounts.forEach(acc => {
+                select.innerHTML += `<option value="${acc.id}">${acc.name} (${acc.phone || 'No Number'})</option>`;
+            });
+        }
+
+        function openAccountModalFromUdharo() {
+            fromUdharo = true;
+            openAccountModal();
+        }
+
+        function setUdharoType(t) {
+            udharoAddType = t;
+            document.getElementById('ud-btn-rec').className = `flex-1 py-3 rounded-xl font-bold ${t==='receivable' ? 'bg-blue-600 text-white' : 'bg-gray-900 text-white'}`;
+            document.getElementById('ud-btn-pay').className = `flex-1 py-3 rounded-xl font-bold ${t==='payable' ? 'bg-orange-600 text-white' : 'bg-gray-900 text-white'}`;
+            
+            // Dynamic Labels based on Type
+            const btn1 = document.getElementById('ud-btn-naya');
+            const btn2 = document.getElementById('ud-btn-purano');
+            
+            if(t === 'receivable') {
+                btn1.innerText = dictionary[db.lang].money_out; // "दिएको"
+                btn2.innerText = dictionary[db.lang].just_record; // "पुरानो बाँकी"
+            } else {
+                // For Payable
+                btn1.innerText = dictionary[db.lang].cash_taken; // "नगद लिएको"
+                btn2.innerText = dictionary[db.lang].credit_only; // "उधारो मात्र"
+            }
+            // Reset selection visual to first option
+            setUdharoMode('naya');
+        }
+
+        function setUdharoMode(m) {
+            udharoAddMode = m;
+            document.getElementById('ud-btn-naya').className = `flex-1 py-3 rounded-xl font-bold ${m==='naya' ? 'bg-[#00ffa3] text-black' : 'bg-gray-900 text-white'}`;
+            document.getElementById('ud-btn-purano').className = `flex-1 py-3 rounded-xl font-bold ${m==='purano' ? 'bg-orange-600 text-white' : 'bg-gray-900 text-white'}`;
+        }
+
+        function saveUdharoEntry() {
+            const accId = document.getElementById('ud-account-select').value;
+            const desc = document.getElementById('ud-desc').value.trim();
+            const amount = parseFloat(document.getElementById('ud-amount').value);
+            const date = document.getElementById('ud-date').value;
+
+            if (!accId || !amount || !date) return alert(dictionary[db.lang].please_fill);
+
+            const acc = db.accounts.find(a => a.id == accId);
+            if (!acc) return alert("Account not found");
+
+            const tx = {
+                id: Date.now(),
+                date,
+                desc: desc || 'उधारो कारोबार',
+                amount: amount,
+                type: udharoAddType,
+                history: [{date: new Date().toLocaleString(), details: "Created"}]
+            };
+            acc.subTransactions.unshift(tx);
+            acc.netBalance = acc.subTransactions.reduce((s, t) => s + (t.type === 'receivable' ? t.amount : -t.amount), 0);
+
+            // LOGIC UPDATE: Home Integration
+            
+            // 1. If Receivable (Linuparne) AND New (Money Out) -> Expense on Home
+            if (udharoAddType === 'receivable' && udharoAddMode === 'naya') {
+                 db.transactions.unshift({
+                     id: Date.now() + 1,
+                     date: date,
+                     desc: `${acc.name} (उधारो - दिएको)`,
+                     amount: amount,
+                     type: 'expense',
+                     fromUdharo: true
+                });
+            }
+            
+            // 2. If Payable (Tirnuparne) AND Cash Taken (Liyeko Ho) -> Income on Home
+            if (udharoAddType === 'payable' && udharoAddMode === 'naya') {
+                 db.transactions.unshift({
+                     id: Date.now() + 1,
+                     date: date,
+                     desc: `${acc.name} (उधारो - लिएको)`,
+                     amount: amount,
+                     type: 'income',
+                     fromUdharo: true
+                });
+            }
+            
+            // If "Credit Only/Old" (Purano/Liyeko Hoina), do NOT affect Home.
+
+            saveDB();
+            closeModal('udharo-entry-modal');
+            renderAll();
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+            document.getElementById(id).classList.add('flex');
+        }
+
+        function openAccountModal() {
+             document.getElementById('account-modal').classList.remove('hidden');
+             document.getElementById('account-modal').classList.add('flex');
+             document.getElementById('acc-name').value = '';
+             document.getElementById('acc-phone').value = '';
+             document.getElementById('new-acc-img').src = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+        }
+
+        function closeModal(id) { 
+            const el = document.getElementById(id);
+            if(el) {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+            }
+            if (fromUdharo && id === 'account-modal') {
+                fromUdharo = false;
+                openUdharoAddModal();
+            }
+        }
+
+        function handleAccPhoto(input) {
+            if (input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => document.getElementById('new-acc-img').src = e.target.result;
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function handleEditAccPhoto(input) {
+            if (input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => document.getElementById('edit-acc-img').src = e.target.result;
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function saveNewAccount() {
+            const name = document.getElementById('acc-name').value;
+            const phone = document.getElementById('acc-phone').value;
+            const photo = document.getElementById('new-acc-img').src;
+            if(!name) return alert("Name required");
+            
+            const newAcc = {
+                id: Date.now(),
+                name, phone, photo,
+                subTransactions: [],
+                netBalance: 0
+            };
+            db.accounts.unshift(newAcc);
+            saveDB();
+            closeModal('account-modal');
+            renderUdharoList(db.accounts);
+            if (fromUdharo) {
+                openUdharoAddModal();
+            }
+        }
+
+        function openEditAccountModal(id) {
+            const acc = db.accounts.find(x => x.id == id);
+            if(!acc) return;
+            document.getElementById('edit-acc-id').value = id;
+            document.getElementById('edit-acc-name').value = acc.name;
+            document.getElementById('edit-acc-phone').value = acc.phone || '';
+            document.getElementById('edit-acc-img').src = acc.photo || 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
+            document.getElementById('account-edit-modal').classList.remove('hidden');
+            document.getElementById('account-edit-modal').classList.add('flex');
+        }
+
+        function saveEditAccount() {
+            const id = document.getElementById('edit-acc-id').value;
+            const name = document.getElementById('edit-acc-name').value;
+            const phone = document.getElementById('edit-acc-phone').value;
+            const photo = document.getElementById('edit-acc-img').src;
+            if(!name) return alert("Name required");
+            const acc = db.accounts.find(x => x.id == id);
+            if(acc) {
+                acc.name = name;
+                acc.phone = phone;
+                acc.photo = photo;
+            }
+            saveDB();
+            closeModal('account-edit-modal');
+            renderUdharoList(db.accounts);
+            if(activeAccountID == id) {
+                document.getElementById('view-acc-name').innerText = name;
+                document.getElementById('view-acc-phone').innerText = phone || 'No Number';
+                document.getElementById('view-acc-img').src = photo;
+            }
+        }
+
+        function openAccount(id) {
+            const acc = db.accounts.find(x => x.id == id);
+            if(!acc) return;
+            activeAccountID = id;
+            
+            document.getElementById('view-acc-name').innerText = acc.name;
+            document.getElementById('view-acc-phone').innerText = acc.phone || 'No Number';
+            document.getElementById('view-acc-img').src = acc.photo || 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
+            
+            renderAccountTransactions(acc);
+            document.getElementById('account-view').classList.remove('hidden');
+            document.getElementById('account-view').classList.add('flex');
+        }
+
+        function renderAccountTransactions(acc) {
+             const list = document.getElementById('acc-tx-list');
+             list.innerHTML = '';
+             
+             const isRec = acc.netBalance >= 0;
+             document.getElementById('view-acc-total').innerText = "Rs. " + formatCurrency(Math.abs(acc.netBalance));
+             document.getElementById('view-acc-total').className = `font-bold text-lg tabular-nums ${isRec ? 'text-blue-400' : 'text-orange-400'}`;
+             
+             const sorted = [...acc.subTransactions].sort((a,b) => new Date(b.date) - new Date(a.date));
+             
+             sorted.forEach(t => {
+                 const isPlus = t.type === 'receivable';
+                 const el = document.createElement('div');
+                 el.className = "bg-[#111] p-4 rounded-xl border border-gray-800 flex justify-between items-center transition active:scale-95 cursor-pointer";
+                 el.innerHTML = `
+                    <div>
+                        <p class="text-white font-bold text-sm">${t.desc}</p>
+                        <p class="text-gray-600 text-[10px]">${t.date}</p>
+                    </div>
+                    <div class="text-right">
+                         <p class="font-bold ${isPlus ? 'text-red-400' : 'text-[#00ffa3]'} tabular-nums">${isPlus ? dictionary[db.lang].gave : dictionary[db.lang].got} Rs. ${formatCurrency(t.amount)}</p>
+                    </div>
+                 `;
+                 el.onclick = (e) => showCtx(e, t.id, 'acc_tx');
+                 list.appendChild(el);
+             });
+        }
+        
+        function closeAccountView() {
+            document.getElementById('account-view').classList.add('hidden');
+            activeAccountID = null;
+        }
+        
+        function openAccTxModal(type) {
+             const v = prompt(dictionary[db.lang].enter_amount_paid);
+             const amt = parseFloat(v);
+             if(!amt || amt <= 0) return alert(dictionary[db.lang].invalid_amount);
+             
+             const desc = prompt(dictionary[db.lang].description, type === 'give' ? "Lent money" : "Received payment");
+             
+             addAccountTransaction(activeAccountID, type === 'give' ? 'receivable' : 'payable', amt, desc || "Transaction");
+        }
+
+        function partialPayment() {
+            const v = prompt(dictionary[db.lang].enter_amount_paid);
+            const amt = parseFloat(v);
+            if(!amt || amt <= 0) return alert(dictionary[db.lang].invalid_amount);
+            const acc = db.accounts.find(x => x.id == activeAccountID);
+            const type = acc.netBalance > 0 ? 'payable' : 'receivable';
+            addAccountTransaction(activeAccountID, type, amt, "Partial Payment");
+        }
+        
+        function settleAccount() {
+            const acc = db.accounts.find(x => x.id == activeAccountID);
+            if(acc.netBalance === 0) return alert("Already settled!");
+            
+            if(confirm("Settle full amount Rs. " + Math.abs(acc.netBalance) + "?")) {
+                 const type = acc.netBalance > 0 ? 'payable' : 'receivable';
+                 addAccountTransaction(activeAccountID, type, Math.abs(acc.netBalance), "Full Settlement");
+            }
+        }
+
+        function viewAccountHistory() {
+            const acc = db.accounts.find(x => x.id == activeAccountID);
+            let msg = "History:\n\n";
+            acc.subTransactions.forEach(t => {
+                t.history.forEach(h => {
+                    msg += `${h.date} - ${h.details} for ${t.desc} (Rs. ${t.amount})\n`;
+                });
+            });
+            alert(msg);
+        }
+
+        function addAccountTransaction(id, type, amount, desc) {
+            const acc = db.accounts.find(x => x.id == id);
+            if(!acc) return;
+
+            const tx = {
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                desc, amount, type,
+                history: [{date: new Date().toLocaleString(), details: "Created"}]
+            };
+            acc.subTransactions.unshift(tx);
+            acc.netBalance = acc.subTransactions.reduce((s, t) => s + (t.type === 'receivable' ? t.amount : -t.amount), 0);
+            
+            // Payment Logic:
+            // Settle 'Receivable' (balance > 0) -> I got money back -> Home Income
+            // Settle 'Payable' (balance < 0) -> I paid money back -> Home Expense
+            // Note: The 'type' param passed here is the action type. 
+            // If type='receivable' (Adding positive value to ledger) -> I GAVE money (Expense).
+            // If type='payable' (Adding negative value to ledger) -> I GOT money (Income).
+            
+            // Wait, standard logic:
+            // Receivable (+): Means I gave money or debt increased. Home: Expense.
+            // Payable (-): Means I got money or paid back debt? No.
+            // Let's stick to the visual: Red Arrow Up (Receivable) = Money Out. Green Arrow Down (Payable) = Money In.
+            
+            db.transactions.unshift({
+                 id: Date.now() + 1,
+                 date: tx.date,
+                 desc: `${acc.name} (${desc})`,
+                 amount: amount,
+                 type: type === 'receivable' ? 'expense' : 'income',
+                 fromUdharo: true
+            });
+            
+            saveDB();
+            renderAll();
+            renderAccountTransactions(acc);
+        }
+
+        function setType(num) {
+            currentType = num === 1 ? 'income' : 'expense';
+            document.getElementById('btn-type-1').className = `flex-1 py-3 rounded-lg text-sm font-bold transition ${num===1?'bg-[#00ffa3] text-black shadow-lg':'bg-gray-900 text-gray-500'}`;
+            document.getElementById('btn-type-2').className = `flex-1 py-3 rounded-lg text-sm font-bold transition ${num===2?'bg-red-600 text-white shadow-lg':'bg-gray-900 text-gray-500'}`;
+        }
+
+        function saveEntry() {
+            const desc = document.getElementById('inp-desc').value;
+            const amount = parseFloat(document.getElementById('inp-amount').value);
+            const date = document.getElementById('inp-date').value;
+            const id = document.getElementById('entry-id').value;
+            const mode = document.getElementById('entry-mode').value;
+            
+            if (!desc || !amount) return alert("Fill details");
+            
+            const numericId = Number(id);
+
+            if (id && numericId > 0) {
+                if(mode === 'acc_tx') {
+                    const acc = db.accounts.find(u => u.id === activeAccountID);
+                    if(acc) {
+                        const itemIndex = acc.subTransactions.findIndex(x => x.id === numericId);
+                        if(itemIndex !== -1) {
+                            acc.subTransactions[itemIndex].desc = desc;
+                            acc.subTransactions[itemIndex].amount = amount;
+                            acc.subTransactions[itemIndex].date = date;
+                            acc.subTransactions[itemIndex].type = currentType === 'income' ? 'payable' : 'receivable';
+
+                            if(!acc.subTransactions[itemIndex].history) acc.subTransactions[itemIndex].history = [];
+                            acc.subTransactions[itemIndex].history.push({date: new Date().toLocaleString(), details: "Edited"});
+                            
+                            acc.netBalance = acc.subTransactions.reduce((s, t) => s + (t.type === 'receivable' ? t.amount : -t.amount), 0);
+                        }
+                    }
+                } else {
+                    const itemIndex = db.transactions.findIndex(t => t.id === numericId);
+                    if(itemIndex !== -1) {
+                        db.transactions[itemIndex].desc = desc; 
+                        db.transactions[itemIndex].amount = amount; 
+                        db.transactions[itemIndex].date = date;
+                        db.transactions[itemIndex].type = currentType;
+                        
+                        if(!db.transactions[itemIndex].history) db.transactions[itemIndex].history = [];
+                        db.transactions[itemIndex].history.push({date: new Date().toLocaleString(), details: "Edited"});
+                    }
+                }
+            } else {
+                db.transactions.unshift({
+                    id: Date.now(), desc, amount, date, type: currentType, 
+                    history: [{date: new Date().toLocaleString(), details: "Created"}]
+                });
+            }
+
+            saveDB(); 
+            closeModal('entry-modal'); 
+            renderAll();
+            if(activeAccountID) {
+                const acc = db.accounts.find(x => x.id === activeAccountID);
+                if(acc) renderAccountTransactions(acc);
+            }
+        }
+
+        function showCtx(e, id, type) {
+            e.preventDefault();
+            e.stopPropagation();
+            const m = document.getElementById('context-menu');
+            const lang = dictionary[db.lang];
+            let html = "";
+            
+            if (type === 'tx' || type === 'acc_tx') {
+                if (type === 'tx') {
+                    const item = db.transactions.find(x => x.id == id);
+                    if (!item.fromUdharo) {
+                        html += `<div class="p-3 border-b border-gray-700 hover:bg-gray-800 cursor-pointer flex items-center gap-3 text-sm text-green-400" onclick="editItem('${type}', ${id})"><i class="fas fa-edit"></i> ${lang.edit}</div>`;
+                    } else {
+                        html += `<div class="p-3 border-b border-gray-700 hover:bg-gray-800 text-sm text-gray-500 italic">Udharo Entry (Edit in Account)</div>`;
+                    }
+                } else {
+                    html += `<div class="p-3 border-b border-gray-700 hover:bg-gray-800 cursor-pointer flex items-center gap-3 text-sm text-green-400" onclick="editItem('${type}', ${id})"><i class="fas fa-edit"></i> ${lang.edit}</div>`;
+                }
+                html += `<div class="p-3 border-b border-gray-700 hover:bg-gray-800 cursor-pointer flex items-center gap-3 text-sm text-blue-400" onclick="viewHistory(${id}, '${type}')"><i class="fas fa-history"></i> ${lang.history}</div>`;
+                html += `<div class="p-3 hover:bg-gray-800 cursor-pointer flex items-center gap-3 text-sm text-red-400" onclick="deleteItem('${type}', ${id})"><i class="fas fa-trash"></i> ${lang.delete}</div>`;
+            } else if (type === 'udharo') {
+                html += `<div class="p-3 border-b border-gray-700 hover:bg-gray-800 cursor-pointer flex items-center gap-3 text-sm text-green-400" onclick="openEditAccountModal(${id})"><i class="fas fa-edit"></i> ${lang.edit_account}</div>`;
+                html += `<div class="p-3 hover:bg-gray-800 cursor-pointer flex items-center gap-3 text-sm text-red-400" onclick="deleteItem('${type}', ${id})"><i class="fas fa-trash"></i> ${lang.delete}</div>`;
+            }
+
+            m.innerHTML = html;
+            m.style.display = 'block';
+            
+            let x, y;
+            if(e.type === 'click' || e.type === 'contextmenu') {
+                x = e.clientX;
+                y = e.clientY;
+            } else if (e.changedTouches) {
+                 x = e.changedTouches[0].clientX;
+                 y = e.changedTouches[0].clientY;
+            } else if (e.clientX !== undefined) {
+                x = e.clientX;
+                y = e.clientY;
+            } else {
+                x = window.innerWidth / 2;
+                y = window.innerHeight / 2;
+            }
+
+            if(x + 200 > window.innerWidth) x = window.innerWidth - 210;
+            if(y + 150 > window.innerHeight) y = window.innerHeight - 160;
+            
+            m.style.left = x + 'px'; m.style.top = y + 'px';
+            
+            setTimeout(() => {
+                const close = () => { m.style.display = 'none'; window.removeEventListener('click', close); };
+                window.addEventListener('click', close);
+            }, 100);
+        }
+
+        function editItem(type, id) {
+            let item;
+            if(type === 'tx') {
+                item = db.transactions.find(x => x.id == id);
+                if(item) {
+                    document.getElementById('entry-mode').value = 'tx';
+                    document.getElementById('entry-id').value = id;
+                    document.getElementById('inp-desc').value = item.desc;
+                    document.getElementById('inp-amount').value = item.amount;
+                    document.getElementById('inp-date').value = item.date;
+                    if(item.type === 'income') setType(1); else setType(2);
+                    openModal('entry-modal');
+                    document.getElementById('modal-title').innerText = dictionary[db.lang].edit || "Edit";
+                }
+            } else if(type === 'acc_tx') {
+                const acc = db.accounts.find(u => u.id == activeAccountID);
+                if(acc) {
+                    item = acc.subTransactions.find(x => x.id == id);
+                    if(item) {
+                        document.getElementById('entry-mode').value = 'acc_tx';
+                        document.getElementById('entry-id').value = id;
+                        document.getElementById('inp-desc').value = item.desc;
+                        document.getElementById('inp-amount').value = item.amount;
+                        document.getElementById('inp-date').value = item.date;
+                        if(item.type === 'receivable') setType(2); else setType(1); 
+                        openModal('entry-modal');
+                        document.getElementById('modal-title').innerText = dictionary[db.lang].edit || "Edit";
+                    }
+                }
+            }
+        }
+
+        function viewHistory(id, type) {
+            let item;
+            if(type === 'tx') item = db.transactions.find(x => x.id == id);
+            else if(type === 'udharo') item = db.accounts.find(x => x.id == id);
+            else if(type === 'acc_tx') {
+                const acc = db.accounts.find(u => u.id == activeAccountID);
+                item = acc ? acc.subTransactions.find(t => t.id == id) : null;
+            }
+
+            if(!item || !item.history) return alert("No history available");
+            let msg = "History:\n\n";
+            item.history.forEach(h => msg += `${h.date} - ${h.details}\n`);
+            alert(msg);
+        }
+
+        // --- UPDATED DELETE LOGIC ---
+        function deleteItem(type, id) {
+            if(!confirm(dictionary[db.lang].move_to_bin)) return;
+            
+            if(type === 'tx') {
+                const idx = db.transactions.findIndex(x => x.id == id);
+                if(idx > -1) {
+                    const item = db.transactions.splice(idx, 1)[0];
+                    // Save original source type in 'trashSource' but KEEP 'type' as income/expense
+                    db.trash.unshift({...item, deletedAt: new Date(), trashSource: 'tx'});
+                }
+            } else if (type === 'udharo') {
+                const idx = db.accounts.findIndex(x => x.id == id);
+                if(idx > -1) {
+                    const item = db.accounts.splice(idx, 1)[0];
+                    db.trash.unshift({...item, deletedAt: new Date(), trashSource: 'udharo'});
+                }
+            } else if (type === 'acc_tx') {
+                const acc = db.accounts.find(u => u.id == activeAccountID);
+                if(acc) {
+                    const idx = acc.subTransactions.findIndex(x => x.id == id);
+                    if(idx > -1) {
+                        const item = acc.subTransactions.splice(idx, 1)[0];
+                        db.trash.unshift({...item, deletedAt: new Date(), trashSource: 'acc_tx', accountId: activeAccountID});
+                        
+                        // Update balance
+                        acc.netBalance = acc.subTransactions.reduce((s, t) => s + (t.type === 'receivable' ? t.amount : -t.amount), 0);
+                        renderAccountTransactions(acc);
+                    }
+                }
+            }
+            saveDB(); renderAll();
+        }
+
+        function renderAnalysis() {
+            const ctx = document.getElementById('financeChart').getContext('2d');
+            if(chartInstance) chartInstance.destroy();
+
+            // Filter data for analysis
+            const filteredTx = db.transactions.filter(t => isDateInFilter(t.date));
+
+            const inc = filteredTx.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+            const exp = filteredTx.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+            
+            let rec = 0, pay = 0;
+            // Filter udharo for analysis
+            db.accounts.forEach(u => { 
+                const periodSubs = u.subTransactions.filter(t => isDateInFilter(t.date));
+                const bal = periodSubs.reduce((s, t) => s + (t.type === 'receivable' ? Number(t.amount) : -Number(t.amount)), 0);
+                if(bal > 0) rec += bal; 
+                else pay += Math.abs(bal); 
+            });
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [dictionary[db.lang].income, dictionary[db.lang].expense, dictionary[db.lang].receivable, dictionary[db.lang].payable],
+                    datasets: [{
+                        data: [inc, exp, rec, pay],
+                        backgroundColor: ['#00ffa3', '#ef4444', '#3b82f6', '#f59e0b'],
+                        borderWidth: 0, borderRadius: 8
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#ccc' } }, y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+            generateAIInsight(filteredTx);
+        }
+
+        function generateAIInsight(filteredTx) {
+            const analysisText = document.getElementById('analysis-text');
+            const details = document.getElementById('analysis-details');
+            details.innerHTML = '';
+
+            const totalTx = filteredTx.length;
+            const recAccounts = db.accounts.filter(u => u.netBalance > 0).sort((a,b) => b.netBalance - a.netBalance);
+            const topOweMe = recAccounts[0] ? recAccounts[0].name + ' (Rs. ' + formatCurrency(recAccounts[0].netBalance) + ')' : 'None';
+
+            let msg = dictionary[db.lang].insight_good;
+            if (db.lang === 'np') msg += ` जम्मा ${formatCurrency(totalTx)} वटा कारोबार रेकर्ड भयो।`;
+            else msg += ` Total ${totalTx} transactions recorded.`;
+
+            analysisText.innerText = msg;
+
+            if(recAccounts.length > 0) {
+                const d1 = document.createElement('div');
+                d1.className = 'text-sm text-blue-400';
+                d1.innerHTML = `<span class="font-medium">${dictionary[db.lang].insight_owe_me}</span> ${topOweMe}`;
+                details.appendChild(d1);
+            }
+
+            const payAccounts = db.accounts.filter(u => u.netBalance < 0).sort((a,b) => a.netBalance - b.netBalance);
+            if(payAccounts.length > 0) {
+                const topIOwe = payAccounts[0].name + ' (Rs. ' + formatCurrency(Math.abs(payAccounts[0].netBalance)) + ')';
+                const d2 = document.createElement('div');
+                d2.className = 'text-sm text-orange-400';
+                d2.innerHTML = `<span class="font-medium">${dictionary[db.lang].insight_i_owe}</span> ${topIOwe}`;
+                details.appendChild(d2);
+            }
+        }
+
+        function autoCleanTrash() {
+            const now = Date.now();
+            db.trash = db.trash.filter(t => (now - new Date(t.deletedAt).getTime()) < 30 * 24 * 60 * 60 * 1000);
+        }
+        function renderTrash() {
+             const list = document.getElementById('bin-list');
+             list.innerHTML = db.trash.length ? '' : `<div class="text-center opacity-40">${dictionary[db.lang].bin_empty}</div>`;
+             db.trash.forEach(t => list.innerHTML += `<div class="glass-panel p-4 flex justify-between"><span class="text-gray-400">${t.desc||t.name}</span><button onclick="restoreItem(${t.id})" class="text-green-400 text-xs border border-green-500 px-2 rounded">${dictionary[db.lang].restore}</button></div>`);
+        }
+        
+        // --- UPDATED RESTORE LOGIC ---
+        function restoreItem(id) {
+             const idx = db.trash.findIndex(x => x.id == id);
+             if(idx > -1) {
+                 const item = db.trash.splice(idx, 1)[0];
+                 if(item.amount) item.amount = Number(item.amount);
+                 delete item.deletedAt;
+                 
+                 // Use trashSource to decide where to push
+                 const source = item.trashSource;
+                 delete item.trashSource; // clean up before restoring
+
+                 if(source === 'udharo') {
+                    db.accounts.push(item);
+                 } else if(source === 'tx') {
+                    if(!db.transactions) db.transactions = [];
+                    // item.type is already preserved ('income'/'expense'), so calculations work
+                    db.transactions.push(item);
+                 } else if(source === 'acc_tx') {
+                     const acc = db.accounts.find(u => u.id == item.accountId);
+                     if(acc) {
+                         acc.subTransactions.push(item);
+                         // Recalculate Balance
+                         acc.netBalance = acc.subTransactions.reduce((s, t) => s + (t.type === 'receivable' ? Number(t.amount) : -Number(t.amount)), 0);
+                     } else {
+                         alert("Cannot restore: Account does not exist anymore.");
+                         item.deletedAt = new Date();
+                         item.trashSource = 'acc_tx';
+                         db.trash.push(item);
+                     }
+                 }
+             }
+             saveDB(); 
+             renderTrash(); 
+             renderAll();
+        }
+
+        function resetData() { if(confirm(dictionary[db.lang].reset_confirm)) { localStorage.removeItem('mero_khata_db'); location.reload(); } }
+        
+        async function processOCR(input) { 
+            if (input.files && input.files[0]) {
+                const loader = document.getElementById('scan-loader');
+                loader.classList.remove('hidden');
+                loader.classList.add('flex');
+                
+                try {
+                    const result = await Tesseract.recognize(
+                        input.files[0],
+                        'eng',
+                        { logger: m => console.log(m) }
+                    );
+                    
+                    const text = result.data.text;
+                    const amountRegex = /(?:Total|Grand Total|Amount|Net Amount|Bill|Invoice|Subtotal)[\s:.]*?([0-9,]+\.?[0-9]*)/i;
+                    const amountMatch = text.match(amountRegex);
+                    
+                    let foundAmount = '';
+                    if (amountMatch) {
+                        foundAmount = amountMatch[1].replace(/,/g, '');
+                    } else {
+                        const allNumbers = text.match(/\d+(?:\.\d+)?/g);
+                        if(allNumbers && allNumbers.length > 0) {
+                            const vals = allNumbers.map(n => parseFloat(n)).filter(n => !isNaN(n));
+                            if(vals.length > 0) {
+                                foundAmount = Math.max(...vals).toString();
+                            }
+                        }
+                    }
+
+                    if(foundAmount) {
+                        if(document.getElementById('udharo-entry-modal').classList.contains('flex')) {
+                            document.getElementById('ud-amount').value = foundAmount;
+                            document.getElementById('ud-desc').value = "Scanned Bill";
+                        } else {
+                            document.getElementById('inp-amount').value = foundAmount;
+                            document.getElementById('inp-desc').value = "Scanned Bill";
+                        }
+                    } else {
+                        alert(dictionary[db.lang].details_not_found || "Could not detect total amount automatically.");
+                    }
+
+                } catch (error) {
+                    alert("Scan failed. Please try a clearer photo.");
+                } finally {
+                    loader.classList.add('hidden');
+                    loader.classList.remove('flex');
+                    input.value = '';
+                }
+            }
+        }
+
+        // --- NEW FUNC: IMPORT DIRECTLY FROM AUTH SCREEN ---
+        function restoreBackupAuth(input) {
+            const file = input.files[0];
+            if(!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if(importedData && importedData.user) {
+                        db = importedData;
+                        saveDB();
+                        alert("Account restored successfully! / खाता सफलतापूर्वक रिस्टोर भयो!");
+                        location.reload();
+                    } else {
+                        alert("Invalid Backup File / गलत ब्याकअप फाइल");
+                    }
+                } catch(err) {
+                    alert("Error reading file / फाइल पढ्न समस्या भयो");
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; 
+        }
+
+        // --- PDF & Backup Logic ---
+        
+        function downloadBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            const dateStr = new Date().toISOString().split('T')[0];
+            downloadAnchorNode.setAttribute("download", `merokhata_backup_${dateStr}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function restoreBackup(input) {
+            const file = input.files[0];
+            if(!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if(importedData && importedData.user) {
+                        if(confirm("Restore this backup? Current data will be replaced.")) {
+                            db = importedData;
+                            saveDB();
+                            location.reload();
+                        }
+                    } else {
+                        alert("Invalid Backup File");
+                    }
+                } catch(err) {
+                    alert("Error reading file");
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; 
+        }
+
+        function exportPDFReport() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(18);
+            doc.text("Mero Khata - Report", 14, 22);
+            doc.setFontSize(11);
+            doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 30);
+            
+            const txData = db.transactions.map(t => [t.date, t.desc, t.type, t.amount]);
+            doc.autoTable({
+                head: [['Date', 'Description', 'Type', 'Amount']],
+                body: txData,
+                startY: 40,
+                theme: 'grid'
+            });
+
+            doc.save('merokhata_report.pdf');
+        }
+
+        function handleSearch() {
+            const q = document.getElementById('search-input').value.toLowerCase();
+            if(currentTab === 'home') renderTransactions(db.transactions.filter(t => t.desc.toLowerCase().includes(q)));
+            else if(currentTab === 'udharo') renderUdharoList(); 
+        }
+
+        function updateProfilePhoto(input) { 
+            if (input.files && input.files[0]) { 
+                const r = new FileReader(); 
+                r.onload = (e) => { db.user.photo = e.target.result; saveDB(); checkLogin(); }; 
+                r.readAsDataURL(input.files[0]); 
+            } 
+        }
+        
+        function handlePhotoUpload(input) { if (input.files && input.files[0]) { const r = new FileReader(); r.onload = (e) => document.getElementById('preview-avatar').src = e.target.result; r.readAsDataURL(input.files[0]); } }
+
+        checkLogin();
+        autoCleanTrash();
+    </script>
+</body>
+</html>
